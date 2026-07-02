@@ -44,10 +44,19 @@ export function addUser(userData) {
   })
 }
 
-// 修改用户
+// 修改用户（管理员用，带角色校验）
 export function updateUser(id, userData) {
   return request({
     url: `/users/${id}`,
+    method: 'put',
+    data: userData
+  })
+}
+
+// 修改当前登录用户的个人信息（不含角色和状态，所有已登录用户可用）
+export function updateProfile(userData) {
+  return request({
+    url: '/users/me',
     method: 'put',
     data: userData
   })

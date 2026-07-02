@@ -90,6 +90,12 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Redis (Token 存储，支持 Token 主动失效) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- Spring Boot 测试 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

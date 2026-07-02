@@ -30,6 +30,29 @@
         </div>
       </div>
 
+      <!-- 图片展示区（画廊） -->
+      <div v-if="getImageList(item.images).length > 0" class="image-gallery">
+        <!-- 大图 -->
+        <div class="main-image-wrapper" @click="previewImage(currentImageIndex)">
+          <img :src="getImageList(item.images)[currentImageIndex]" alt="item" class="main-image" />
+          <div v-if="getImageList(item.images).length > 1" class="image-index-badge">
+            {{ currentImageIndex + 1 }} / {{ getImageList(item.images).length }}
+          </div>
+        </div>
+        <!-- 缩略图 -->
+        <div v-if="getImageList(item.images).length > 1" class="thumb-list">
+          <div
+            v-for="(url, index) in getImageList(item.images)"
+            :key="url"
+            class="thumb-item"
+            :class="{ active: index === currentImageIndex }"
+            @click="currentImageIndex = index"
+          >
+            <img :src="url" alt="thumb" class="thumb-img" />
+          </div>
+        </div>
+      </div>
+
       <el-divider />
 
       <div class="detail-content">
@@ -53,6 +76,9 @@
           <div v-if="item.contactQq" class="contact-item">
             <el-icon><Message /></el-icon>
             <span>QQ：{{ item.contactQq }}</span>
+          </div>
+          <div v-if="!item.contactPhone && !item.contactWechat && !item.contactQq" class="contact-item empty">
+            <span style="color: #c0c4cc;">发布者未留联系方式</span>
           </div>
         </div>
       </div>
@@ -133,6 +159,11 @@
     </el-card>
 
     <el-empty v-else description="物品信息不存在或已下架" />
+
+    <!-- 图片大图预览 -->
+    <el-dialog v-model="previewVisible" title="图片预览" width="720px" align-center>
+      <img :src="previewUrl" alt="preview" style="width: 100%; border-radius: 4px;" />
+    </el-dialog>
   </div>
 </template>
 
@@ -142,7 +173,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Location, Clock, Calendar, Phone, ChatDotRound, Message, Check, Delete } from '@element-plus/icons-vue'
 import { getItemDetail, deleteItem, changeItemStatus } from '@/api/item'
-import { getItemComments, createComment, deleteComment } from '@/api/comment'
+import { getItemComments, createComment, deleteComment as apiDeleteComment } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -155,6 +186,42 @@ const commentPage = ref(1)
 const commentTotal = ref(0)
 const commentLoading = ref(false)
 const newComment = ref('')
+
+// 当前展示的图片索引
+const currentImageIndex = ref(0)
+
+// 图片预览
+const previewVisible = ref(false)
+const previewUrl = ref('')
+
+function previewImage(index) {
+  const list = getImageList(item.value?.images)
+  if (list.length > 0) {
+    previewUrl.value = list[index] || list[0]
+    previewVisible.value = true
+  }
+}
+
+/**
+ * 解析后端返回的 images 字段（JSON 字符串），返回图片 URL 数组
+ */
+function getImageList(images) {
+  if (!images) return []
+  try {
+    if (typeof images === 'string') {
+      const parsed = JSON.parse(images)
+      if (Array.isArray(parsed)) return parsed
+      return [images]
+    }
+    if (Array.isArray(images)) return images
+    return []
+  } catch {
+    if (typeof images === 'string') {
+      return images.split(',').filter(u => u && u.trim())
+    }
+    return []
+  }
+}
 
 const statusText = computed(() => {
   if (!item.value) return ''
@@ -246,7 +313,7 @@ function submitComment() {
 function handleDeleteComment(comment) {
   ElMessageBox.confirm('确认删除此条留言吗？', '确认删除', { type: 'warning' })
     .then(() => {
-      deleteComment(comment.id).then(() => {
+      apiDeleteComment(comment.id).then(() => {
         ElMessage.success('删除成功')
         loadComments()
       })
@@ -266,10 +333,10 @@ function loadDetail() {
     ElMessage.error('物品ID无效')
     return
   }
+  currentImageIndex.value = 0
   getItemDetail(id).then((data) => {
     item.value = data
   }).then(() => {
-    // 加载留言
     loadComments()
   }).catch(() => {
     item.value = null
@@ -282,29 +349,38 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ========== 页面整体 ========== */
 .item-detail {
-  padding: 20px;
-  max-width: 900px;
+  padding: 10px 20px;
+  max-width: 1000px;
   margin: 0 auto;
+  box-sizing: border-box;
 }
+
 .back-btn {
   margin-bottom: 15px;
 }
+
 .detail-card, .comment-card {
   border-radius: 8px;
   margin-bottom: 20px;
 }
+
 .detail-header .type-tags {
   margin-bottom: 16px;
 }
+
 .status-tag {
   margin-left: 8px;
 }
+
 .title {
   margin: 0 0 16px 0;
   font-size: 24px;
   color: #303133;
+  word-break: break-word;
 }
+
 .meta-info {
   display: flex;
   flex-wrap: wrap;
@@ -312,11 +388,71 @@ onMounted(() => {
   color: #909399;
   font-size: 14px;
 }
+
 .meta-info span {
   display: inline-flex;
   align-items: center;
   gap: 5px;
 }
+
+/* 图片画廊 */
+.image-gallery {
+  margin-top: 24px;
+}
+.main-image-wrapper {
+  position: relative;
+  width: 100%;
+  max-height: 480px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f5f7fa;
+  cursor: zoom-in;
+}
+.main-image {
+  width: 100%;
+  height: auto;
+  max-height: 480px;
+  object-fit: contain;
+  display: block;
+}
+.image-index-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+.thumb-list {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.thumb-item {
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #f5f7fa;
+}
+.thumb-item.active {
+  border-color: #409EFF;
+}
+.thumb-item:hover {
+  transform: translateY(-2px);
+}
+.thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .description {
   color: #606266;
   font-size: 15px;
@@ -339,6 +475,9 @@ h4 {
   gap: 8px;
   color: #606266;
   font-size: 14px;
+}
+.contact-item.empty {
+  color: #c0c4cc;
 }
 .action-section {
   display: flex;

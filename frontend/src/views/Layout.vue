@@ -1,6 +1,9 @@
 <template>
   <el-container class="layout-container">
-    <el-aside width="200px" class="aside">
+    <!-- 背景层（动态检测 /images/app-bg.jpg 是否存在，不存在则用默认渐变） -->
+    <div class="layout-bg" :class="{ 'has-image': bgImageExists }"></div>
+
+    <el-aside width="220px" class="aside">
       <div class="logo">
         <el-icon :size="24"><Document /></el-icon>
         <span>失物招领</span>
@@ -49,7 +52,7 @@
       </el-menu>
     </el-aside>
 
-    <el-container>
+    <el-container class="right-container">
       <el-header class="header">
         <div class="header-left">
           <h2>校园失物招领系统</h2>
@@ -77,7 +80,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -87,6 +90,20 @@ const route = useRoute()
 const userStore = useUserStore()
 
 const activeMenu = computed(() => route.path)
+
+// ========= 背景图片动态检测 =========
+const bgImageExists = ref(false)
+
+function checkBgImage() {
+  const img = new Image()
+  img.onload = () => { bgImageExists.value = true }
+  img.onerror = () => { bgImageExists.value = false }
+  img.src = '/images/app-bg.jpg?t=' + Date.now()
+}
+
+onMounted(() => {
+  checkBgImage()
+})
 
 function handleLogout() {
   ElMessageBox.confirm('确定要退出登录吗？', '提示', {
@@ -102,13 +119,42 @@ function handleLogout() {
 </script>
 
 <style scoped>
+/* ========== 总体布局 ========== */
 .layout-container {
   height: 100vh;
+  width: 100vw;
+  position: relative;
+  overflow: hidden;
 }
 
+/* ========== 背景层 ========== */
+.layout-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #e0e7ff;
+  background-image: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 50%, #fce7f3 100%);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 0;
+}
+
+.layout-bg.has-image {
+  background-image: url('/images/app-bg.jpg');
+  background-color: transparent;
+}
+
+/* ========== 左侧栏 ========== */
 .aside {
-  background-color: #001529;
+  background-color: rgba(0, 21, 41, 0.95);
   color: white;
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .logo {
@@ -121,19 +167,32 @@ function handleLogout() {
   font-weight: bold;
   gap: 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
 }
 
 .aside :deep(.el-menu) {
   border-right: none;
 }
 
+/* ========== 右侧内容区 ========== */
+.right-container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+}
+
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: white;
+  background: rgba(255, 255, 255, 0.95);
   border-bottom: 1px solid #ebeef5;
   padding: 0 20px;
+  height: 60px !important;
+  flex-shrink: 0;
 }
 
 .header-left h2 {
@@ -156,7 +215,10 @@ function handleLogout() {
 }
 
 .main-content {
-  background: #f0f2f5;
   padding: 20px;
+  background: rgba(248, 250, 252, 0.85);
+  flex: 1;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 </style>

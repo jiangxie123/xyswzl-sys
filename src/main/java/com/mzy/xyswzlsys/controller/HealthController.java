@@ -34,6 +34,27 @@ public class HealthController {
     }
 
     /**
+     * 基础健康检查
+     */
+    @GetMapping
+    public Result<Map<String, Object>> check() {
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("status", "UP");
+            data.put("timestamp", System.currentTimeMillis());
+            // 简单检查数据库连接
+            jdbcTemplate.queryForObject("SELECT 1", Integer.class);
+            data.put("database", "connected");
+            return Result.success(data);
+        } catch (Exception e) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("status", "DOWN");
+            data.put("error", e.getMessage());
+            return Result.success(data);
+        }
+    }
+
+    /**
      * 检查数据库连接
      */
     @GetMapping("/db")

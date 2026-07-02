@@ -7,11 +7,18 @@ import com.mzy.xyswzlsys.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 认证接口
+ *
+ * 安全机制：
+ *   1. 登录接口：密码以加密形式（ENC:xxx）传输，后端解密后做 BCrypt 比对
+ *   2. 登录成功：生成 JWT Token 并存储到 Redis（TTL = 配置的有效期）
+ *   3. 登出接口：从 Authorization 请求头提取 Token，删除 Redis 中对应记录，使其立即失效
+ *   4. 其他接口：JwtAuthenticationFilter 中校验 JWT 签名 + Redis 中是否存在
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -26,7 +33,7 @@ public class AuthController {
     /**
      * 用户登录
      * POST /api/auth/login
-     * 请求体：{"username": "admin", "password": "123456"}
+     * 请求体：{"username": "admin", "password": "ENC:xxxxxx"}
      * 响应：{"code":200, "data":{"token":"xxx", "user":{...}}}
      */
     @PostMapping("/login")
@@ -37,11 +44,15 @@ public class AuthController {
     /**
      * 登出
      * POST /api/auth/logout
-     * JWT 无状态方案下：客户端丢弃 Token 即可
+     * 从 Authorization: Bearer {token} 请求头中提取 Token，删除 Redis 中对应记录
      */
     @PostMapping("/logout")
-    public Result<Void> logout() {
-        authService.logout();
+    public Result<Void> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String token = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+        }
+        authService.logout(token);
         return Result.success();
     }
 

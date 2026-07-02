@@ -15,10 +15,10 @@ public interface AuthService {
     LoginResponse login(LoginRequest request);
 
     /**
-     * 登出（当前 JWT 无状态方案下，客户端直接丢弃 Token 即可）
-     * 这里仅预留方法，方便未来扩展黑名单等机制
+     * 登出：删除 Redis 中存储的 Token，使该 Token 立即失效
+     * @param token 从请求头中提取的 JWT Token
      */
-    void logout();
+    void logout(String token);
 
     /**
      * 用户注册（默认注册为学生角色）

@@ -28,6 +28,41 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="物品图片" prop="images">
+          <div class="image-upload-wrapper">
+            <!-- 已上传图片展示 -->
+            <div class="image-preview-list">
+              <div v-for="(url, index) in imageList" :key="url" class="image-preview-item">
+                <img :src="url" alt="物品图片" class="preview-img" @click="previewImage(url)" />
+                <el-icon class="remove-btn" @click="removeImage(index)"><Close /></el-icon>
+              </div>
+
+              <!-- 上传按钮（最多 6 张） -->
+              <div v-if="imageList.length < 6" class="upload-placeholder" @click="$refs.fileInput.click()">
+                <el-icon :size="28"><Plus /></el-icon>
+                <div class="upload-tip">点击上传图片</div>
+                <div class="upload-sub-tip">最多 6 张，每张 ≤ 10MB</div>
+              </div>
+            </div>
+
+            <!-- 隐藏的 file input -->
+            <input
+              ref="fileInput"
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+              multiple
+              style="display: none"
+              @change="handleFileChange"
+            />
+
+            <!-- 上传进度 -->
+            <div v-if="uploading" class="upload-progress">
+              <el-icon class="is-loading"><Loading /></el-icon>
+              <span>正在上传图片...</span>
+            </div>
+          </div>
+        </el-form-item>
+
         <el-form-item label="详细描述" prop="description">
           <el-input
             v-model="form.description"
@@ -90,23 +125,33 @@
         </template>
       </el-alert>
     </el-card>
+
+    <!-- 图片大图预览 -->
+    <el-dialog v-model="previewVisible" :title="'图片预览'" width="600px" align-center>
+      <img :src="previewUrl" alt="preview" style="width: 100%; border-radius: 4px;" />
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Check, RefreshLeft } from '@element-plus/icons-vue'
-import { createItem } from '@/api/item'
+import { ArrowLeft, Check, RefreshLeft, Plus, Close, Loading } from '@element-plus/icons-vue'
+import { createItem, uploadImage } from '@/api/item'
 import { getAllCategories } from '@/api/category'
 
 const router = useRouter()
 const formRef = ref(null)
+const fileInput = ref(null)
 const loading = ref(false)
+const uploading = ref(false)
 const categories = ref([])
 const submitted = ref(false)
 const submitMessage = ref('')
+
+// 已上传图片 URL 列表
+const imageList = ref([])
 
 const form = reactive({
   type: 0,
@@ -125,6 +170,62 @@ const rules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
   description: [{ required: true, message: '请输入详细描述', trigger: 'blur' }]
+}
+
+// 图片预览
+const previewVisible = ref(false)
+const previewUrl = ref('')
+
+function previewImage(url) {
+  previewUrl.value = url
+  previewVisible.value = true
+}
+
+function removeImage(index) {
+  imageList.value.splice(index, 1)
+}
+
+async function handleFileChange(event) {
+  const files = Array.from(event.target.files || [])
+  if (files.length === 0) return
+
+  // 清除 input 值，允许重复上传同名文件
+  event.target.value = ''
+
+  // 限制总数量 ≤ 6
+  const remainingSlots = 6 - imageList.value.length
+  if (remainingSlots <= 0) {
+    ElMessage.warning('最多只能上传 6 张图片')
+    return
+  }
+  const filesToUpload = files.slice(0, remainingSlots)
+
+  uploading.value = true
+  try {
+    for (const file of filesToUpload) {
+      // 单文件大小校验
+      if (file.size > 10 * 1024 * 1024) {
+        ElMessage.warning(`${file.name} 超过 10MB，已跳过`)
+        continue
+      }
+      // 类型校验
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+      if (!allowedTypes.includes(file.type)) {
+        ElMessage.warning(`${file.name} 格式不支持，已跳过`)
+        continue
+      }
+
+      const result = await uploadImage(file)
+      if (result && result.url) {
+        imageList.value.push(result.url)
+      }
+    }
+    ElMessage.success(`成功上传 ${filesToUpload.length} 张图片`)
+  } catch (err) {
+    console.error('上传图片失败:', err)
+  } finally {
+    uploading.value = false
+  }
 }
 
 function loadCategories() {
@@ -153,7 +254,9 @@ function submitForm() {
       lostTime: form.lostTime || null,
       contactPhone: form.contactPhone || null,
       contactWechat: form.contactWechat || null,
-      contactQq: form.contactQq || null
+      contactQq: form.contactQq || null,
+      // 图片 URL 列表转为 JSON 字符串存储
+      images: imageList.value.length > 0 ? JSON.stringify(imageList.value) : null
     }
 
     createItem(submitData).then(() => {
@@ -180,6 +283,7 @@ function resetForm() {
   form.contactPhone = ''
   form.contactWechat = ''
   form.contactQq = ''
+  imageList.value = []
 }
 
 onMounted(() => {
@@ -188,18 +292,132 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ========== 页面整体 ========== */
 .item-publish {
-  padding: 20px;
-  max-width: 900px;
+  padding: 10px 20px;
+  max-width: 1000px;
   margin: 0 auto;
+  box-sizing: border-box;
 }
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .card-header h3 {
   margin: 0;
   color: #303133;
+}
+
+/* ========== 表单统一宽度 ========== */
+.item-publish :deep(.el-form-item__content) {
+  width: 100%;
+  max-width: 600px;
+}
+
+.item-publish :deep(.el-input),
+.item-publish :deep(.el-textarea),
+.item-publish :deep(.el-select) {
+  width: 100%;
+}
+
+/* ========== 图片上传区 ========== */
+.image-upload-wrapper {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.image-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.image-preview-item {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #dcdfe6;
+  background: #f5f7fa;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: zoom-in;
+  display: block;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 16px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 1;
+  z-index: 2;
+}
+
+.upload-placeholder {
+  width: 120px;
+  height: 120px;
+  border: 2px dashed #dcdfe6;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #8c939d;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.upload-placeholder:hover {
+  border-color: #409EFF;
+  color: #409EFF;
+  background: #ecf5ff;
+}
+
+.upload-tip {
+  font-size: 12px;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.upload-sub-tip {
+  font-size: 10px;
+  color: #c0c4cc;
+  margin-top: 2px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.upload-progress {
+  margin-top: 10px;
+  color: #8c939d;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+/* ========== 分割线 ========== */
+.item-publish :deep(.el-divider__text) {
+  font-weight: 500;
+  color: #606266;
 }
 </style>

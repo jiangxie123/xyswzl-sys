@@ -30,8 +30,26 @@
       <el-table-column prop="createTime" label="创建时间" min-width="160" />
       <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" type="primary" link @click="handleEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" link @click="handleDelete(row)">删除</el-button>
+          <!-- 管理员仅能编辑学生用户；超级管理员可编辑所有用户 -->
+          <el-button
+            size="small"
+            type="primary"
+            link
+            :disabled="!userStore.isSuperAdmin && row.role >= 1"
+            @click="handleEdit(row)"
+          >
+            编辑
+          </el-button>
+          <!-- 删除按钮仅超级管理员可见 -->
+          <el-button
+            v-if="userStore.isSuperAdmin"
+            size="small"
+            type="danger"
+            link
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -60,10 +78,18 @@
         <el-input v-model="userForm.realName" placeholder="请输入真实姓名" />
       </el-form-item>
       <el-form-item label="角色">
-        <el-select v-model="userForm.role" style="width: 100%">
+        <el-select v-model="userForm.role" style="width: 100%" :disabled="!userStore.isSuperAdmin">
           <el-option label="学生" :value="0" />
-          <el-option label="管理员" :value="1" />
-          <el-option label="超级管理员" :value="2" />
+          <el-option
+            v-if="userStore.isSuperAdmin"
+            label="管理员"
+            :value="1"
+          />
+          <el-option
+            v-if="userStore.isSuperAdmin"
+            label="超级管理员"
+            :value="2"
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="状态">
@@ -99,6 +125,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getUserList, addUser, updateUser, deleteUser as apiDeleteUser } from '@/api/auth'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
 
 const userList = ref([])
 const totalCount = ref(0)

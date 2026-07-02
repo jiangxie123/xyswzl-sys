@@ -1,6 +1,22 @@
 import request from '@/utils/request'
 
 /**
+ * 上传单张图片（返回 { url, name }）
+ */
+export function uploadImage(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request({
+    url: '/upload/image',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
  * 分页查询物品列表（公开接口，只返回已审核通过的）
  */
 export function getItemList(params) {

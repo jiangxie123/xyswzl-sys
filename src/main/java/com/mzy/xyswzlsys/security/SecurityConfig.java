@@ -57,13 +57,22 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/items").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/items/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()
-                        // 分类管理接口只允许管理员访问
+                        // 物品/留言的管理接口只允许管理员访问
                         .requestMatchers("/api/categories/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         // 物品管理和审核接口需要管理员权限
                         .requestMatchers("/api/items/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/items/*/audit").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         // 管理员接口只有管理员角色才能访问
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        // 个人信息接口：所有已登录用户都可以查看和修改自己的信息
+                        .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/users/me").authenticated()
+                        // 用户管理接口：查询/新增/修改需要 ADMIN 或 SUPER_ADMIN 角色
+                        // （具体创建/修改哪个角色的用户，由后端 Service 层做二次校验）
+                        .requestMatchers(HttpMethod.GET, "/api/users", "/api/users/*").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/users").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/users/*").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        // 删除用户：只有 SUPER_ADMIN 才能删除
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("SUPER_ADMIN")
                         // 其他所有 API 都需要登录
                         .requestMatchers("/api/**").authenticated()

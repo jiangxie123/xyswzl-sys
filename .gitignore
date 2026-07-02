@@ -43,6 +43,10 @@ frontend/.env.*.local
 ### Logs ###
 logs/
 *.log
+
+### User uploads ###
+# 运行时生成的用户上传图片
+uploads/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
