@@ -2,8 +2,10 @@ package com.mzy.xyswzlsys.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.mzy.xyswzlsys.common.Result;
+import com.mzy.xyswzlsys.dto.request.ItemCommentRequest;
 import com.mzy.xyswzlsys.entity.ItemComment;
 import com.mzy.xyswzlsys.service.ItemCommentService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -65,13 +67,12 @@ public class ItemCommentController {
      * 发布留言（需要登录）
      */
     @PostMapping
-    public Result<ItemComment> create(@RequestBody Map<String, Object> body,
+    public Result<ItemComment> create(@Valid @RequestBody ItemCommentRequest request,
                                        @RequestHeader("Authorization") String authHeader) {
-        Long itemId = body.get("itemId") instanceof Number ? ((Number) body.get("itemId")).longValue() : null;
-        String content = body.get("content") != null ? body.get("content").toString() : null;
-        Long parentId = body.get("parentId") instanceof Number ? ((Number) body.get("parentId")).longValue() : null;
         Long userId = parseUserIdFromToken(authHeader);
-        return Result.success(commentService.createComment(itemId, userId, content, parentId));
+        if (userId == null) return Result.error(401, "请先登录");
+        return Result.success(commentService.createComment(request.getItemId(), userId,
+                request.getContent(), request.getParentId()));
     }
 
     /**
@@ -101,10 +102,13 @@ public class ItemCommentController {
 
     /**
      * 管理员切换留言状态（0-禁用，1-正常）
+     * 注：只有管理员才能调用（前端页面在管理员面板），此处补充角色检查
      */
     @PostMapping("/{id}/status")
     public Result<ItemComment> updateStatus(@PathVariable Long id,
-                                             @RequestBody Map<String, Integer> body) {
+                                             @RequestBody Map<String, Integer> body,
+                                             @RequestHeader("Authorization") String authHeader) {
+        if (!isAdmin(authHeader)) return Result.error(403, "无权操作");
         Integer status = body.get("status");
         if (status == null) throw new IllegalArgumentException("状态不能为空");
         return Result.success(commentService.updateCommentStatus(id, status));

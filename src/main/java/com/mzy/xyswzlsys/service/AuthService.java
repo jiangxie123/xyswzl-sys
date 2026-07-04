@@ -1,6 +1,7 @@
 package com.mzy.xyswzlsys.service;
 
 import com.mzy.xyswzlsys.dto.request.LoginRequest;
+import com.mzy.xyswzlsys.dto.request.RegisterRequest;
 import com.mzy.xyswzlsys.dto.response.LoginResponse;
 
 /**
@@ -21,7 +22,7 @@ public interface AuthService {
     void logout(String token);
 
     /**
-     * 用户注册（默认注册为学生角色）
+     * 用户注册（使用强约束 DTO 做参数校验，默认注册为学生角色）
      */
-    String register(String username, String password, String realName, String phone, String email, String studentId, String college);
+    String register(RegisterRequest request);
 }

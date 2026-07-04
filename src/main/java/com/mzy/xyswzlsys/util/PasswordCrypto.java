@@ -56,7 +56,7 @@ public class PasswordCrypto {
     }
 
     /**
-     * 仅用于调试：加密一个字符串（与前端算法一致）
+     * 加密密码：使用 XOR + Base64（与前端加密算法一致）
      */
     public static String encryptPassword(String plainPassword) {
         if (plainPassword == null) return null;

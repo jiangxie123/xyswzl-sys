@@ -2,9 +2,24 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { login as apiLogin } from '@/api/auth'
 
+/**
+ * 安全地从 localStorage 读取 JSON ，并在失败时返回 null 。
+ * 防止有人手动污染 localStorage 。
+ */
+function safeParse (key) {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw || raw === 'null' || raw === 'undefined') return null
+    return JSON.parse(raw)
+  } catch (e) {
+    console.warn('[userStore] 读取 ' + key + ' 解析失败: ' + e.message)
+    return null
+  }
+}
+
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
-  const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || 'null'))
+  const userInfo = ref(safeParse('userInfo'))
 
   const isLoggedIn = computed(() => !!token.value)
   const isAdmin = computed(() => userInfo.value && (userInfo.value.role === 1 || userInfo.value.role === 2))

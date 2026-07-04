@@ -1,6 +1,7 @@
 package com.mzy.xyswzlsys.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.mzy.xyswzlsys.dto.request.ItemInfoRequest;
 import com.mzy.xyswzlsys.entity.ItemInfo;
 
 /**
@@ -35,14 +36,14 @@ public interface ItemInfoService {
     ItemInfo getItemById(Long id);
 
     /**
-     * 发布物品
+     * 发布物品（使用受约束的 DTO，避免用户不能绕过审核 / 伪造发布者）
      */
-    ItemInfo createItem(ItemInfo item, Long userId);
+    ItemInfo createItem(ItemInfoRequest request, Long userId);
 
     /**
-     * 更新物品信息
+     * 更新物品信息（使用受约束的 DTO）
      */
-    ItemInfo updateItem(Long id, ItemInfo item, Long userId);
+    ItemInfo updateItem(Long id, ItemInfoRequest request, Long userId);
 
     /**
      * 删除物品

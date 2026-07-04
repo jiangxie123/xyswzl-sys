@@ -84,6 +84,23 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理数据库唯一索引冲突异常（例如重复的用户名、学号等）
+     */
+    @ExceptionHandler(org.springframework.dao.DuplicateKeyException.class)
+    public Result<Void> handleDuplicateKeyException(org.springframework.dao.DuplicateKeyException e) {
+        log.warn("数据库唯一索引冲突: {}", e.getMessage());
+        String message = "数据已存在，请检查用户名或学号后重试";
+        // 尝试从异常信息中推断冲突字段
+        String lowerMsg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+        if (lowerMsg.contains("username") || lowerMsg.contains("uk_username")) {
+            message = "用户名已存在，请换一个";
+        } else if (lowerMsg.contains("student_id") || lowerMsg.contains("uk_student_id")) {
+            message = "该学号已被注册，请更换或不填";
+        }
+        return Result.error(ResultCode.BAD_REQUEST.getCode(), message);
+    }
+
+    /**
      * 处理所有其他未捕获的异常
      */
     @ExceptionHandler(Exception.class)

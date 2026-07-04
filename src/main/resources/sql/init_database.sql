@@ -204,6 +204,16 @@ INSERT INTO `item_comment` (`item_id`, `user_id`, `content`) VALUES
 (1, 3, '谢谢！'),
 (2, 3, '我在附近看到过类似的手机，联系我');
 
+-- 7.5 初始化操作日志（可选）
+INSERT INTO `admin_operation_log` (`admin_id`, `admin_name`, `operation_type`, `operation_module`, `operation_desc`, `target_id`, `target_type`, `result`, `error_msg`, `create_time`) VALUES
+(1, '超级管理员', 'LOGIN', 'SYSTEM', '管理员登录成功', NULL, NULL, 1, NULL, NOW()),
+(1, '超级管理员', 'AUDIT', 'ITEM', '审核通过物品ID=1', 1, 'ITEM', 1, NULL),
+(1, '超级管理员', 'AUDIT', 'ITEM', '审核通过物品ID=2', 2, 'ITEM', 1, NULL),
+(1, '超级管理员', 'AUDIT', 'ITEM', '审核通过物品ID=3', 3, 'ITEM', 1, NULL),
+(2, '普通管理员', 'CREATE', 'USER', '新增用户：student01', 3, 'USER', 1, NULL),
+(2, '普通管理员', 'CREATE', 'USER', '新增用户：student02', 4, 'USER', 1, NULL),
+(1, '超级管理员', 'UPDATE', 'CATEGORY', '更新分类ID=1', 1, 'CATEGORY', 1, NULL);
+
 -- ============================================================
 -- 执行完成提示
 -- ============================================================

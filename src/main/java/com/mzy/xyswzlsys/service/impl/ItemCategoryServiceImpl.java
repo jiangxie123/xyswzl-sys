@@ -32,7 +32,7 @@ public class ItemCategoryServiceImpl implements ItemCategoryService {
         Page<ItemCategory> page = new Page<>(current, size);
         QueryWrapper<ItemCategory> wrapper = new QueryWrapper<>();
         if (name != null && !name.isEmpty()) {
-            wrapper.like("name", name);
+            wrapper.like("category_name", name);
         }
         wrapper.orderByAsc("sort_order", "id");
         return categoryMapper.selectPage(page, wrapper);

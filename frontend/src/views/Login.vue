@@ -49,19 +49,19 @@
             <el-form-item label="确认密码" prop="confirmPassword">
               <el-input v-model="registerForm.confirmPassword" placeholder="请再次输入密码" size="large" type="password" show-password :disabled="loading" />
             </el-form-item>
-            <el-form-item label="真实姓名">
+            <el-form-item label="真实姓名" prop="realName">
               <el-input v-model="registerForm.realName" placeholder="选填" size="large" :disabled="loading" />
             </el-form-item>
-            <el-form-item label="手机号">
+            <el-form-item label="手机号" prop="phone">
               <el-input v-model="registerForm.phone" placeholder="选填" size="large" :disabled="loading" />
             </el-form-item>
-            <el-form-item label="邮箱">
+            <el-form-item label="邮箱" prop="email">
               <el-input v-model="registerForm.email" placeholder="选填" size="large" :disabled="loading" />
             </el-form-item>
-            <el-form-item label="学号">
+            <el-form-item label="学号" prop="studentId">
               <el-input v-model="registerForm.studentId" placeholder="选填" size="large" :disabled="loading" />
             </el-form-item>
-            <el-form-item label="学院">
+            <el-form-item label="学院" prop="college">
               <el-input v-model="registerForm.college" placeholder="选填" size="large" :disabled="loading" />
             </el-form-item>
             <el-button type="primary" size="large" class="login-btn" :loading="loading" @click="handleRegister">注 册</el-button>
@@ -183,7 +183,8 @@ const validateConfirmPassword = (rule, value, callback) => {
 const registerRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度 3-20 个字符', trigger: 'blur' }
+    { min: 3, max: 30, message: '用户名长度 3-30 个字符', trigger: 'blur' },
+    { pattern: /^[A-Za-z0-9_]+$/, message: '用户名仅支持字母、数字和下划线', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -192,6 +193,24 @@ const registerRules = {
   confirmPassword: [
     { required: true, message: '请再次输入密码', trigger: 'blur' },
     { validator: validateConfirmPassword, trigger: 'blur' }
+  ],
+  realName: [
+    { max: 50, message: '真实姓名过长', trigger: 'blur' }
+  ],
+  phone: [
+    { max: 20, message: '手机号过长', trigger: 'blur' },
+    { pattern: /^$|^[0-9\-+]+$/, message: '手机号格式不正确', trigger: 'blur' }
+  ],
+  email: [
+    { max: 100, message: '邮箱过长', trigger: 'blur' },
+    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }
+  ],
+  studentId: [
+    { max: 30, message: '学号过长', trigger: 'blur' },
+    { pattern: /^$|^[A-Za-z0-9\-]+$/, message: '学号仅支持字母、数字和横杠', trigger: 'blur' }
+  ],
+  college: [
+    { max: 100, message: '学院名称过长', trigger: 'blur' }
   ]
 }
 

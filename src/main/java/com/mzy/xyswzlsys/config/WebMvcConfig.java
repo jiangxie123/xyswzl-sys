@@ -58,17 +58,16 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
-        // 常见的前端路由 → 转发到 index.html 由 Vue Router 处理
+        // 前端路由（Vue Router History 模式）→ 转发到 index.html
+        // 使用 Ant 风格通配符支持路径参数（如 /items/1）和子路由（如 /admin/users）
         String[] frontRoutes = {
             "/login",
+            "/register",
             "/items",
-            "/items/{id}",
+            "/items/**",
             "/publish",
             "/profile",
-            "/admin/users",
-            "/admin/categories",
-            "/admin/audit",
-            "/admin/logs"
+            "/admin/**"
         };
         for (String route : frontRoutes) {
             registry.addViewController(route).setViewName("forward:/index.html");

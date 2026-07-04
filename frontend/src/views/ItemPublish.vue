@@ -3,7 +3,7 @@
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
-          <h3>发布物品信息</h3>
+          <h3>{{ isEditMode ? '编辑物品信息' : '发布物品信息' }}</h3>
           <el-button link @click="$router.back()">
             <el-icon><ArrowLeft /></el-icon> 返回
           </el-button>
@@ -104,7 +104,7 @@
 
         <el-form-item>
           <el-button type="primary" size="large" @click="submitForm" :loading="loading">
-            <el-icon><Check /></el-icon> 提交发布
+            <el-icon><Check /></el-icon> {{ isEditMode ? '保存修改' : '提交发布' }}
           </el-button>
           <el-button size="large" @click="resetForm">
             <el-icon><RefreshLeft /></el-icon> 重置
@@ -121,7 +121,7 @@
         style="margin-top: 20px"
       >
         <template #default>
-          您的物品信息已提交，等待管理员审核通过后将显示在列表中。
+          {{ isEditMode ? '物品信息已更新，等待管理员重新审核。' : '您的物品信息已提交，等待管理员审核通过后将显示在列表中。' }}
         </template>
       </el-alert>
     </el-card>
@@ -134,14 +134,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Check, RefreshLeft, Plus, Close, Loading } from '@element-plus/icons-vue'
-import { createItem, uploadImage } from '@/api/item'
+import { createItem, updateItem, uploadImage, getItemDetail } from '@/api/item'
 import { getAllCategories } from '@/api/category'
 
 const router = useRouter()
+const route = useRoute()
 const formRef = ref(null)
 const fileInput = ref(null)
 const loading = ref(false)
@@ -149,6 +150,10 @@ const uploading = ref(false)
 const categories = ref([])
 const submitted = ref(false)
 const submitMessage = ref('')
+
+// 编辑模式支持
+const editId = ref(null)
+const isEditMode = computed(() => editId.value !== null)
 
 // 已上传图片 URL 列表
 const imageList = ref([])
@@ -259,12 +264,16 @@ function submitForm() {
       images: imageList.value.length > 0 ? JSON.stringify(imageList.value) : null
     }
 
-    createItem(submitData).then(() => {
+    const apiCall = isEditMode.value
+      ? updateItem(editId.value, submitData)
+      : createItem(submitData)
+
+    apiCall.then(() => {
       submitted.value = true
-      submitMessage.value = '发布成功！'
-      ElMessage.success('发布成功，等待审核')
+      submitMessage.value = isEditMode.value ? '修改成功！' : '发布成功！'
+      ElMessage.success(isEditMode.value ? '修改成功，等待重新审核' : '发布成功，等待审核')
       setTimeout(() => {
-        router.push('/items')
+        router.push('/profile')
       }, 1500)
     }).finally(() => {
       loading.value = false
@@ -286,8 +295,50 @@ function resetForm() {
   imageList.value = []
 }
 
+function loadItemDetail(id) {
+  loading.value = true
+  getItemDetail(id).then((data) => {
+    editId.value = id
+    form.type = data.type ?? 0
+    form.title = data.title ?? ''
+    form.categoryId = data.categoryId ?? null
+    form.description = data.description ?? ''
+    form.location = data.location ?? ''
+    form.lostTime = data.lostTime ?? null
+    form.contactPhone = data.contactPhone ?? ''
+    form.contactWechat = data.contactWechat ?? ''
+    form.contactQq = data.contactQq ?? ''
+
+    // 图片解析（后端返回 images 可能是 JSON 字符串）
+    if (data.images) {
+      try {
+        const parsed = typeof data.images === 'string' ? JSON.parse(data.images) : data.images
+        if (Array.isArray(parsed)) {
+          imageList.value = parsed
+        } else {
+          imageList.value = []
+        }
+      } catch (e) {
+        imageList.value = []
+      }
+    } else {
+      imageList.value = []
+    }
+  }).finally(() => {
+    loading.value = false
+  })
+}
+
 onMounted(() => {
   loadCategories()
+
+  const qEditId = route.query.editId
+  if (qEditId) {
+    const id = Number(qEditId)
+    if (!isNaN(id) && id > 0) {
+      loadItemDetail(id)
+    }
+  }
 })
 </script>
 

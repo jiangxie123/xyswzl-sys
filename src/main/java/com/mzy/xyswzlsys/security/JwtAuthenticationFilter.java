@@ -68,6 +68,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
 
                 // 步骤 3：从 JWT 中解析用户信息
+                Long userId = jwtTokenUtil.getUserIdFromToken(token);
                 String username = jwtTokenUtil.getUsernameFromToken(token);
                 Integer role = jwtTokenUtil.getRoleFromToken(token);
 
@@ -79,6 +80,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 };
 
                 // 步骤 5：将用户信息放入 Spring Security 上下文
+                // 使用自定义 UserDetails 的替代方案：把 userId/role 放入 details 扩展字段
                 UserDetails userDetails = new User(
                         username,
                         "",
@@ -87,7 +89,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(token);
+                // 将完整用户信息存为 details，方便业务代码获取
+                CurrentUserDetails currentUser = new CurrentUserDetails(userId, username, role);
+                authentication.setDetails(currentUser);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
             } catch (Exception e) {

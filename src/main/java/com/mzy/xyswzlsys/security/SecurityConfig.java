@@ -47,11 +47,11 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 配置接口权限
                 .authorizeHttpRequests(auth -> auth
-                        // 健康检查接口放行（开发调试用）
+                        // 健康检查接口放行
                         .requestMatchers("/api/health/**").permitAll()
                         // 登录接口放行（无需 Token）
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        // 其他 /api/auth/* 默认放行
+                        // 其他 /api/auth/* 默认放行（含 register / logout）
                         .requestMatchers("/api/auth/**").permitAll()
                         // 物品列表查询对公众开放（匿名用户也能看发布的失物/拾物信息）
                         .requestMatchers(HttpMethod.GET, "/api/items").permitAll()
@@ -68,13 +68,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/users/me").authenticated()
                         // 用户管理接口：查询/新增/修改需要 ADMIN 或 SUPER_ADMIN 角色
-                        // （具体创建/修改哪个角色的用户，由后端 Service 层做二次校验）
                         .requestMatchers(HttpMethod.GET, "/api/users", "/api/users/*").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/users").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/users/*").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         // 删除用户：只有 SUPER_ADMIN 才能删除
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("SUPER_ADMIN")
-                        // 其他所有 API 都需要登录
+                        // 其他所有 API 都需要登录（包含 /api/upload/** 等写操作接口）
                         .requestMatchers("/api/**").authenticated()
                         // 其他请求放行
                         .anyRequest().permitAll()

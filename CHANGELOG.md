@@ -4,6 +4,126 @@
 
 ---
 
+## v1.2.0 - 2026-07-03
+
+**提交哈希**：本地开发提交（安全加固 + 前端体验优化）
+**Commit 信息**：fix: P0 级安全修复（角色校验、归属校验、登录失败锁定）+ 操作日志页面修复 + 注册表单校验对齐 + 前端构建产物更新
+
+---
+
+### 🔧 核心修复（后端）
+
+#### 1. P0 级安全修复：角色越权访问拦截
+**功能说明**：学生（role=0）不能调用任何 `/api/users` 管理接口；普通管理员（role=1）不能删除用户，不能新增/修改其他管理员账号。
+
+**后端文件变更**：
+- [SysUserController.java](src/main/java/com/mzy/xyswzlsys/controller/SysUserController.java) — 每个管理接口入口增加 `isAdmin(currentRole)` / `isSuperAdmin(currentRole)` 判断；`delete` 仅超级管理员可用；`add` / `update` 由 Service 层做角色取值检查
+
+#### 2. P0 级安全修复：物品归属校验
+**功能说明**：普通用户修改/删除物品时，Service 层强制校验 userId 是否匹配；非发布者操作直接抛出异常。同时 `status=1`（已认领/找回）状态变更时必须提供认领人 ID，防止状态被恶意篡改。
+
+**后端文件变更**：
+- [ItemInfoServiceImpl.java](src/main/java/com/mzy/xyswzlsys/service/impl/ItemInfoServiceImpl.java) — `updateItem` 增加 `existing.getUserId().equals(userId)` 校验；`deleteItem` 增加相同逻辑（`isAdmin` 作为例外条件）；`changeItemStatus` 新增 `claimUserId` 非空 + >0 校验，且仅发布者可变更状态
+
+#### 3. P0 级安全修复：登录失败锁定
+**功能说明**：同一用户名连续登录失败 5 次后，1 分钟内禁止再次登录，防爆力破解。
+
+**后端文件变更**：
+- [AuthServiceImpl.java](src/main/java/com/mzy/xyswzlsys/service/impl/AuthServiceImpl.java) — 引入 `FAILURE_CACHE`（ConcurrentHashMap）；每次登录失败计数累加，达到 MAX_FAILURE 触发 LOCK_DURATION_MS 锁定；登录成功自动重置计数
+
+#### 4. P0 级安全修复：请求参数数值范围校验
+**功能说明**：防止前端/工具提交 `role=99` 或 `status=99` 绕过业务逻辑。
+
+**后端文件变更**：
+- [SysUserRequest.java](src/main/java/com/mzy/xyswzlsys/dto/request/SysUserRequest.java) — `role` 字段新增 `@Min(0) @Max(2)`；`status` 字段新增 `@Min(0) @Max(1)`
+
+---
+
+### 🛠 核心修复（前端）
+
+#### 5. 操作日志页面修复（无响应 + 缺加载状态）
+**功能说明**：原页面 `getAdminLogs().then(...)` 未 catch 错误，接口失败时表格永远处于空状态；也没有 loading 提示。改造为 `async/await + try/catch` 并增加表格 v-loading。
+
+**前端文件变更**：
+- [OperationLog.vue](frontend/src/views/admin/OperationLog.vue) — 引入 `loading` 响应状态；`el-table` 增加 `v-loading="loading"`；`loadLogs()` 改为 async，请求包 try/catch，失败时清空 records；ElMessage 自然给出错误提示
+
+#### 6. 注册表单校验与后端对齐
+**功能说明**：原注册表单只校验「用户名必填 + 密码必填 + 两次密码一致」，与后端实际规则不一致。现在用户名长度/格式、手机号格式、邮箱格式、学号格式、学院长度等全部与后端一致。
+
+**前端文件变更**：
+- [Login.vue](frontend/src/views/Login.vue) — `registerRules` 扩展 `username`（3-30 字符 + 仅字母数字下划线）、`realName`（max 50）、`phone`（`^[0-9-+]+$`）、`email`（email 格式）、`studentId`（仅字母数字 + 横杠）、`college`（max 100）；对应 form-item 补充 `prop` 绑定触发校验
+
+---
+
+### 🧪 自动化接口测试（v1.2.0 新增）
+**功能说明**：基于 Java 11 HttpClient（无第三方依赖），对核心业务流程进行全链路接口级回归测试，覆盖认证、用户管理、物品 CRUD、操作日志、权限矩阵等 44 个用例，全部通过。
+
+**测试文件**：
+- [AbstractApiTest.java](src/test/java/com/mzy/xyswzlsys/AbstractApiTest.java) — 测试基类：HTTP 请求发送、JSON 解析、登录辅助、密码加密（XOR + Base64）
+- [AuthApiTest.java](src/test/java/com/mzy/xyswzlsys/AuthApiTest.java) — 认证测试（12 用例）：注册、登录、登出、非加密密码被拒绝、连续失败锁定、未登录访问受限
+- [UserManagementApiTest.java](src/test/java/com/mzy/xyswzlsys/UserManagementApiTest.java) — 用户管理测试（7 用例）：角色越权拦截、CRUD、分页查询
+- [ItemApiTest.java](src/test/java/com/mzy/xyswzlsys/ItemApiTest.java) — 物品操作测试（14 用例）：创建/修改/删除归属校验、claimUserId 必填、状态变更、管理员审核、分类查询
+- [OperationLogApiTest.java](src/test/java/com/mzy/xyswzlsys/OperationLogApiTest.java) — 操作日志测试（10 用例）：权限拦截、分页查询、条件筛选、超级管理员清理功能
+
+**测试执行方式**：
+```bash
+mvn test           # 运行全部 44 个测试
+mvn test -Dtest=ItemApiTest   # 单独运行某测试类
+```
+**当前状态**：✅ Tests run: 44, Failures: 0, Errors: 0
+
+---
+
+### 🧹 操作日志清理功能（v1.2.0 新增）
+**功能说明**：为防止操作日志无限增长，提供双重清理机制：
+- **定期清理**：每天凌晨 02:00 自动清理 30 天前的操作日志（基于 `@Scheduled` cron `0 0 2 * * ?`）
+- **主动清理**：超级管理员可通过前端按钮随时清理指定天数前的日志（仅 role=2 有权）
+
+**后端文件变更**：
+- [XyswzlSysApplication.java](src/main/java/com/mzy/xyswzlsys/XyswzlSysApplication.java) — 新增 `@EnableScheduling` 启用定时任务
+- [AdminOperationLogService.java](src/main/java/com/mzy/xyswzlsys/service/AdminOperationLogService.java) — 新增 `cleanOldLogs(int daysBefore)` 接口定义与 `scheduledCleanOldLogs()` 定时任务
+- [AdminOperationLogServiceImpl.java](src/main/java/com/mzy/xyswzlsys/service/impl/AdminOperationLogServiceImpl.java) — 实现清理逻辑（按 create_time < 当前时间 - 天数删除）
+- [AdminOperationLogController.java](src/main/java/com/mzy/xyswzlsys/controller/AdminOperationLogController.java) — 新增 `DELETE /api/admin/logs/clean?daysBefore=30` 接口，role=0/1 均返回 403，仅 role=2 可执行
+
+**前端文件变更**：
+- [log.js](frontend/src/api/log.js) — 新增 `cleanLogs(params)` API 方法
+- [OperationLog.vue](frontend/src/views/admin/OperationLog.vue) — 页面右上角新增「清理历史日志」按钮，点击后弹出确认框输入天数，二次确认后执行清理并刷新列表；筛选下拉框新增「CLEAN=清理」类型
+
+**权限控制**：
+- 学生 (role=0)：❌ 403 无权操作
+- 管理员 (role=1)：❌ 403 无权操作  
+- 超级管理员 (role=2)：✅ 200 清理成功
+
+---
+
+### 🔐 权限矩阵（v1.2.0 与 v1.1.0 一致，仅校验更严格）
+
+| 功能 | 学生 (role=0) | 管理员 (role=1) | 超级管理员 (role=2) |
+|------|----------------|-------------------|------------------------|
+| 登录 | ✅ | ✅ | ✅ |
+| 修改自己的基本信息 | ✅ | ✅ | ✅ |
+| 查看用户列表 | ❌ | ✅ | ✅ |
+| 新增学生 | ❌ | ✅ | ✅ |
+| 新增管理员/超级管理员 | ❌ | ❌ | ✅ |
+| 修改学生信息 | ❌ | ✅ | ✅ |
+| 修改管理员/超级管理员信息 | ❌ | ❌ | ✅ |
+| 删除用户 | ❌ | ❌ | ✅ |
+| 物品审核 | ❌ | ✅ | ✅ |
+| 分类管理 | ❌ | ✅ | ✅ |
+| 操作日志查看 | ❌ | ✅ | ✅ |
+| 修改他人物品 | ❌ | ❌ | ❌ |
+| 删除他人物品（非管理员） | ❌ | ❌ | ❌ |
+
+---
+
+### 📦 构建产物
+- `src/main/resources/static/index.html`
+- `src/main/resources/static/assets/*.js`
+- `src/main/resources/static/assets/*.css`
+- 构建状态：✅ `vite build` 成功（6.6s）
+
+---
+
 ## v1.1.0 - 2026-07-02
 
 **提交哈希**：`56beeb9` | 作者：mzy
